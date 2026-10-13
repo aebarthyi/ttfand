@@ -1,0 +1,22 @@
+[Unit]
+Description=Tenstorrent fan daemon (drives a host PWM fan from card ASIC temp)
+Documentation=https://github.com/tenstorrent/tt-umd
+# Start after the kernel driver is up so tt-umd can open the device.
+After=multi-user.target
+Wants=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/ttfand -c /etc/ttfand.conf
+# Reload the curve without restarting: systemctl reload ttfand
+ExecReload=/bin/kill -HUP $MAINPID
+# On crash or a stale device handle after a card reset, restart — the daemon
+# forces the fan to full speed both on exit and on startup, so the passive card
+# is never left uncooled across the gap.
+Restart=on-failure
+RestartSec=3
+# Needs root to write hwmon pwm* and to open /dev/tenstorrent/*.
+User=root
+
+[Install]
+WantedBy=multi-user.target

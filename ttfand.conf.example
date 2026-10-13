@@ -1,0 +1,34 @@
+# ttfand configuration
+#
+# Controls a Linux hwmon PWM fan from the Tenstorrent card's ASIC temperature.
+# Copy to /etc/ttfand.conf and edit pwm_path to match your system.
+#
+# Find your fan's PWM control file first:
+#   for h in /sys/class/hwmon/hwmon*; do echo "$h -> $(cat $h/name 2>/dev/null)"; done
+#   ls /sys/class/hwmon/hwmonN/pwm*        # pwm1, pwm1_enable, fan1_input, ...
+# Test a channel by hand (1=manual):
+#   echo 1  | sudo tee /sys/class/hwmon/hwmonN/pwm1_enable
+#   echo 200| sudo tee /sys/class/hwmon/hwmonN/pwm1   # fan should speed up
+# `sensors` (lm-sensors) and `pwmconfig` help identify which pwmN drives which fan.
+
+# --- required ---
+pwm_path        = /sys/class/hwmon/hwmon2/pwm1
+
+# --- recommended ---
+# Enable file for the same channel. 1 = manual/software control.
+pwm_enable_path = /sys/class/hwmon/hwmon2/pwm1_enable
+
+# --- polling / behavior ---
+poll_ms         = 1000      # sample period (ms)
+hysteresis_c    = 3.0       # only lower PWM after temp drops this much (anti-hunting)
+min_pwm         = 60        # never go below this while running (keep airflow on a passive card)
+max_pwm         = 255
+spinup_pwm      = 255       # kick to this at startup so the fan reliably spins up
+spinup_ms       = 2000
+fail_pwm        = 255       # duty on read failure and on shutdown (fail SAFE = full speed)
+fail_grace      = 3         # tolerate this many consecutive failed reads before forcing fail_pwm
+
+# --- fan curve: temp_c:pwm pairs, comma separated, any number of points ---
+# PWM is 0..255. Interpolated linearly; clamped to [min_pwm, max_pwm].
+# This is a conservative curve for a passive n300s — tune to taste/noise.
+curve = 40:60, 50:90, 60:140, 70:190, 80:255
